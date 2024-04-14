@@ -42,45 +42,59 @@ class VideoPlayerScreen extends StatefulWidget {
 }
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
-  late VideoPlayerController videoPlayerController;
-  ChewieController? chewieController;
+  late List<VideoPlayerController> videoPlayerControllers;
+  List<ChewieController?> chewieControllers = [];
 
   @override
   void initState() {
     super.initState();
-    _initPlayer();
+    _initPlayers();
   }
 
-  void _initPlayer() async {
-    videoPlayerController = VideoPlayerController.network(
-        'https://www.youtube.com/watch?v=mqL5SG49TWc');
-    await videoPlayerController.initialize();
+  void _initPlayers() async {
+    List<String> videoUrls = [
+      'https://www.youtube.com/watch?v=mqL5SG49TWc',
+      'https://www.youtube.com/watch?v=Tjsshi8l-fM'
+    ];
 
-    chewieController = ChewieController(
-      videoPlayerController: videoPlayerController,
-      autoPlay: true,
-      looping: true,
-      additionalOptions: (context) {
-        return <OptionItem>[
-          OptionItem(
-            onTap: () => debugPrint('Option 1 pressed!'),
-            iconData: Icons.chat,
-            title: 'Option 1',
-          ),
-          OptionItem(
-            onTap: () => debugPrint('Option 2 pressed!'),
-            iconData: Icons.share,
-            title: 'Option 2',
-          ),
-        ];
-      },
-    );
+    videoPlayerControllers =
+        videoUrls.map((url) => VideoPlayerController.network(url)).toList();
+
+    chewieControllers = videoPlayerControllers
+        .map((controller) => ChewieController(
+              videoPlayerController: controller,
+              autoPlay: true,
+              looping: true,
+              additionalOptions: (context) {
+                return <OptionItem>[
+                  OptionItem(
+                    onTap: () => debugPrint('Option 1 pressed!'),
+                    iconData: Icons.chat,
+                    title: 'Option 1',
+                  ),
+                  OptionItem(
+                    onTap: () => debugPrint('Option 2 pressed!'),
+                    iconData: Icons.share,
+                    title: 'Option 2',
+                  ),
+                ];
+              },
+            ))
+        .toList();
+
+    await Future.wait(
+        videoPlayerControllers.map((controller) => controller.initialize()));
+    setState(() {});
   }
 
   @override
   void dispose() {
-    videoPlayerController.dispose();
-    chewieController?.dispose();
+    for (var controller in videoPlayerControllers) {
+      controller.dispose();
+    }
+    for (var chewieController in chewieControllers) {
+      chewieController?.dispose();
+    }
     super.dispose();
   }
 
@@ -90,12 +104,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       appBar: AppBar(
         title: const Text("Video Player"),
       ),
-      body: chewieController != null
-          ? Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
-              child: Chewie(
-                controller: chewieController!,
-              ),
+      body: videoPlayerControllers.isNotEmpty
+          ? ListView.builder(
+              itemCount: videoPlayerControllers.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20),
+                  child: Chewie(
+                    controller: chewieControllers[index]!,
+                  ),
+                );
+              },
             )
           : Center(
               child: CircularProgressIndicator(),
